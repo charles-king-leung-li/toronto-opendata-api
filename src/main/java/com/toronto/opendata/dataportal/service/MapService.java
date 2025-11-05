@@ -1,8 +1,8 @@
 package com.toronto.opendata.dataportal.service;
 
-import com.toronto.opendata.dataportal.dto.GeoJsonFeatureCollectionDTO;
-import com.toronto.opendata.dataportal.dto.GeoJsonFeatureDTO;
-import com.toronto.opendata.dataportal.dto.MapPointDTO;
+import com.toronto.opendata.dataportal.dto.GeoJson.GeoJsonFeatureCollectionDTO;
+import com.toronto.opendata.dataportal.dto.GeoJson.GeoJsonFeatureDTO;
+import com.toronto.opendata.dataportal.dto.GeoJson.MapPointDTO;
 import com.toronto.opendata.dataportal.model.CulturalHotSpotModel;
 import com.toronto.opendata.dataportal.model.MultiPointModel;
 import org.springframework.stereotype.Service;

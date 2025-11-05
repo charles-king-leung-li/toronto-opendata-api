@@ -1,6 +1,6 @@
 package com.toronto.opendata.dataportal.transformer;
 
-import com.toronto.opendata.dataportal.dto.CulturalHotSpotDTO;
+import com.toronto.opendata.dataportal.dto.CulturalHotSpot.CulturalHotSpotDTO;
 import com.toronto.opendata.dataportal.model.CulturalHotSpotModel;
 import org.springframework.stereotype.Component;
 

@@ -1,4 +1,4 @@
-package com.toronto.opendata.dataportal.dto;
+package com.toronto.opendata.dataportal.dto.GeoJson;
 
 import lombok.Builder;
 import lombok.Data;

@@ -1,4 +1,4 @@
-package com.toronto.opendata.dataportal.dto;
+package com.toronto.opendata.dataportal.dto.CulturalHotSpot;
 
 import lombok.Data;
 import lombok.Builder;

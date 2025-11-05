@@ -1,7 +1,7 @@
 package com.toronto.opendata.dataportal.controller;
 
-import com.toronto.opendata.dataportal.dto.GeoJsonFeatureCollectionDTO;
-import com.toronto.opendata.dataportal.dto.MapPointDTO;
+import com.toronto.opendata.dataportal.dto.GeoJson.GeoJsonFeatureCollectionDTO;
+import com.toronto.opendata.dataportal.dto.GeoJson.MapPointDTO;
 import com.toronto.opendata.dataportal.service.MapService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
