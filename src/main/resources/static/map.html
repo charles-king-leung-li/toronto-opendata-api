@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toronto Cultural Hotspots Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        .info-panel h3 {
+            margin-top: 0;
+        }
+        .popup-content h4 {
+            margin: 0 0 10px 0;
+        }
+        .popup-content p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info-panel">
+        <h3>Toronto Cultural Hotspots</h3>
+        <p><strong>Total Points:</strong> <span id="point-count">Loading...</span></p>
+        <p><strong>Endpoints Available:</strong></p>
+        <ul>
+            <li><code>/api/map/points</code></li>
+            <li><code>/api/map/geojson</code></li>
+            <li><code>/api/map/points/nearby</code></li>
+            <li><code>/api/map/points/bounds</code></li>
+        </ul>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize map centered on Toronto
+        const map = L.map('map').setView([43.6532, -79.3832], 11);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Fetch and display cultural hotspots
+        fetch('/api/map/geojson')
+            .then(response => response.json())
+            .then(data => {
+                console.log('GeoJSON data:', data);
+                
+                // Update point count
+                document.getElementById('point-count').textContent = data.features.length;
+
+                // Add GeoJSON layer to map
+                L.geoJSON(data, {
+                    pointToLayer: function(feature, latlng) {
+                        return L.circleMarker(latlng, {
+                            radius: 8,
+                            fillColor: '#ff7800',
+                            color: '#000',
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const props = feature.properties;
+                        const popupContent = `
+                            <div class="popup-content">
+                                <h4>${props.name || 'Unknown'}</h4>
+                                <p><strong>Type:</strong> ${props.type || 'N/A'}</p>
+                                <p><strong>Address:</strong> ${props.address || 'N/A'}</p>
+                                <p><strong>Description:</strong> ${props.description || 'No description available'}</p>
+                                ${props.imageUrl ? `<p><a href="${props.imageUrl}" target="_blank">View Image</a></p>` : ''}
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent);
+                    }
+                }).addTo(map);
+            })
+            .catch(error => {
+                console.error('Error loading map data:', error);
+                document.getElementById('point-count').textContent = 'Error loading data';
+            });
+    </script>
+</body>
+</html>
