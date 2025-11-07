@@ -3,6 +3,7 @@ package com.toronto.opendata.dataportal.service;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.UncheckedIOException;
@@ -17,13 +18,12 @@ import java.util.stream.StreamSupport;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-//import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @Service
 public class CSVReaderService {
-    // private final ResourceLoader resourceLoader;
     
     private static final CSVFormat CSV_FORMAT = CSVFormat.DEFAULT.builder()
             .setHeader()
@@ -31,24 +31,20 @@ public class CSVReaderService {
             .build();
             
     public CSVReaderService() {
-
     }
-    
-            
-    // public CSVReaderService(ResourceLoader resourceLoader) {
-    //     this.resourceLoader = resourceLoader;
-    // }
     
     /**
      * Reads a CSV file and returns its contents as a list of records
-     * @param filePath Path to the CSV file
+     * @param filePath Path to the CSV file (classpath resource path)
      * @return List of CSV records with header names as map keys
      * @throws IOException if file cannot be read
      */
     public List<Map<String, String>> readCSV(String filePath) throws IOException {
         List<Map<String, String>> records = new ArrayList<>();
         
-        try (Reader reader = new FileReader(filePath);
+        // Load from classpath
+        ClassPathResource resource = new ClassPathResource(filePath);
+        try (Reader reader = new InputStreamReader(resource.getInputStream());
              CSVParser csvParser = new CSVParser(reader, CSV_FORMAT)) {
                  
             for (CSVRecord record : csvParser) {

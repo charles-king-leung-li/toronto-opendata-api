@@ -16,7 +16,7 @@ import com.toronto.opendata.dataportal.util.GeometryParser;
 public class PointsOfInterestService {
 
     private CSVReaderService csvReaderService;
-    private String csvFilePath = "src/main/resources/points-of-interest-05-11-2025.csv";
+    private String csvFilePath = "data/points-of-interest-05-11-2025.csv";
     
     @Autowired
     public PointsOfInterestService(CSVReaderService csvReaderService) {

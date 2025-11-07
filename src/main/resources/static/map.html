@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toronto Cultural Hotspots Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body {
             margin: 0;
@@ -21,20 +20,48 @@
             right: 10px;
             background: white;
             padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             z-index: 1000;
             max-width: 300px;
+            font-family: 'Roboto', Arial, sans-serif;
         }
         .info-panel h3 {
             margin-top: 0;
+            color: #1a73e8;
         }
-        .popup-content h4 {
+        .info-panel ul {
+            padding-left: 20px;
+        }
+        .info-panel code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        /* Custom InfoWindow styles */
+        .gm-style .info-window-content {
+            font-family: 'Roboto', Arial, sans-serif;
+        }
+        .gm-style .info-window-content h4 {
             margin: 0 0 10px 0;
+            color: #202124;
+            font-size: 16px;
         }
-        .popup-content p {
+        .gm-style .info-window-content p {
             margin: 5px 0;
             font-size: 14px;
+            color: #5f6368;
+        }
+        .gm-style .info-window-content strong {
+            color: #202124;
+        }
+        .gm-style .info-window-content a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        .gm-style .info-window-content a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -50,58 +77,158 @@
             <li><code>/api/map/points/nearby</code></li>
             <li><code>/api/map/points/bounds</code></li>
         </ul>
+        <p style="font-size: 11px; color: #5f6368; margin-top: 15px;">
+            <strong>Note:</strong> API key is loaded securely from backend configuration.
+        </p>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize map centered on Toronto
-        const map = L.map('map').setView([43.6532, -79.3832], 11);
+        let map;
+        let markers = [];
+        let infoWindow;
 
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-
-        // Fetch and display cultural hotspots
-        fetch('/api/map/geojson')
-            .then(response => response.json())
-            .then(data => {
-                console.log('GeoJSON data:', data);
+        // Load Google Maps API dynamically after fetching the API key
+        async function loadGoogleMaps() {
+            try {
+                // Fetch API key from backend
+                const response = await fetch('/api/config/maps-key');
+                const config = await response.json();
                 
-                // Update point count
-                document.getElementById('point-count').textContent = data.features.length;
+                // Load Google Maps script with the API key
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${config.apiKey}&callback=initMap&libraries=marker`;
+                script.async = true;
+                script.defer = true;
+                document.head.appendChild(script);
+            } catch (error) {
+                console.error('Error loading Google Maps API key:', error);
+                document.getElementById('point-count').textContent = 'Error loading API key';
+            }
+        }
 
-                // Add GeoJSON layer to map
-                L.geoJSON(data, {
-                    pointToLayer: function(feature, latlng) {
-                        return L.circleMarker(latlng, {
-                            radius: 8,
-                            fillColor: '#ff7800',
-                            color: '#000',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.8
-                        });
-                    },
-                    onEachFeature: function(feature, layer) {
-                        const props = feature.properties;
-                        const popupContent = `
-                            <div class="popup-content">
-                                <h4>${props.name || 'Unknown'}</h4>
-                                <p><strong>Type:</strong> ${props.type || 'N/A'}</p>
-                                <p><strong>Address:</strong> ${props.address || 'N/A'}</p>
-                                <p><strong>Description:</strong> ${props.description || 'No description available'}</p>
-                                ${props.imageUrl ? `<p><a href="${props.imageUrl}" target="_blank">View Image</a></p>` : ''}
-                            </div>
-                        `;
-                        layer.bindPopup(popupContent);
+        // Initialize Google Map
+        function initMap() {
+            // Create map centered on Toronto
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 43.6532, lng: -79.3832 },
+                zoom: 11,
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                    position: google.maps.ControlPosition.TOP_RIGHT,
+                },
+                streetViewControl: true,
+                fullscreenControl: true,
+                zoomControl: true,
+                styles: [
+                    {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "on" }]
                     }
-                }).addTo(map);
-            })
-            .catch(error => {
-                console.error('Error loading map data:', error);
-                document.getElementById('point-count').textContent = 'Error loading data';
+                ]
             });
+
+            // Create single InfoWindow for reuse
+            infoWindow = new google.maps.InfoWindow();
+
+            // Load cultural hotspots
+            loadCulturalHotspots();
+        }
+
+        function loadCulturalHotspots() {
+            fetch('/api/map/points')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Map data:', data);
+                    
+                    // Update point count
+                    document.getElementById('point-count').textContent = data.length;
+
+                    // Add markers for each hotspot
+                    data.forEach(point => {
+                        if (point.latitude && point.longitude) {
+                            addMarker(point);
+                        }
+                    });
+
+                    // Fit map bounds to show all markers
+                    if (markers.length > 0) {
+                        const bounds = new google.maps.LatLngBounds();
+                        markers.forEach(marker => bounds.extend(marker.getPosition()));
+                        map.fitBounds(bounds);
+                        
+                        // Don't zoom in too much for single marker
+                        google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+                            if (this.getZoom() > 15) {
+                                this.setZoom(15);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading map data:', error);
+                    document.getElementById('point-count').textContent = 'Error loading data';
+                });
+        }
+
+        function addMarker(point) {
+            const position = { lat: point.latitude, lng: point.longitude };
+
+            // Create marker with custom color
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: point.name || 'Cultural Hotspot',
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 8,
+                    fillColor: '#ff7800',
+                    fillOpacity: 0.8,
+                    strokeColor: '#000000',
+                    strokeWeight: 1
+                },
+                animation: google.maps.Animation.DROP
+            });
+
+            // Create info window content
+            const infoContent = `
+                <div class="info-window-content" style="max-width: 300px;">
+                    <h4>${point.name || 'Unknown'}</h4>
+                    <p><strong>Type:</strong> ${point.type || 'N/A'}</p>
+                    <p><strong>Address:</strong> ${point.address || 'N/A'}</p>
+                    <p><strong>Description:</strong> ${point.description || 'No description available'}</p>
+                    ${point.imageUrl ? `<p><a href="${point.imageUrl}" target="_blank">View Image</a></p>` : ''}
+                </div>
+            `;
+
+            // Add click listener to show info window
+            marker.addListener('click', function() {
+                infoWindow.setContent(infoContent);
+                infoWindow.open(map, marker);
+                
+                // Optional: bounce animation on click
+                if (marker.getAnimation() !== null) {
+                    marker.setAnimation(null);
+                } else {
+                    marker.setAnimation(google.maps.Animation.BOUNCE);
+                    setTimeout(() => marker.setAnimation(null), 750);
+                }
+            });
+
+            markers.push(marker);
+        }
+
+        // Optional: Add marker clustering if you have many points
+        // Uncomment and include the MarkerClusterer library
+        /*
+        function addMarkerClustering() {
+            new markerClusterer.MarkerClusterer({ markers, map });
+        }
+        */
+
+        // Call this on page load
+        loadGoogleMaps();
     </script>
 </body>
 </html>
