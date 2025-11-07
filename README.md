@@ -244,6 +244,7 @@ This is a personal project, but suggestions and feedback are welcome!
 This project uses public data from [Toronto Open Data](https://open.toronto.ca/).
 
 ## 👤 Author
+For the frontend React Native application, see https://github.com/charles-king-leung-li/TorontoOpenDataReactFE
 
 **Charles King Leung Li**
 - GitHub: [@charles-king-leung-li](https://github.com/charles-king-leung-li)
