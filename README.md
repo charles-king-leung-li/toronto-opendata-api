@@ -1,258 +1,295 @@
-# Toronto Open Data API
+# Toronto Open Data Provider Service (Monorepo)
 
-Backend API service providing Toronto's open data to mobile and web applications.
+> **Microservices architecture for Toronto Open Data access**
 
-## 🎯 Overview
+This monorepo contains the complete Toronto Open Data Provider Service, migrated from a monolithic architecture to microservices.
 
-This is a Spring Boot RESTful API that serves as the backend layer for Toronto Open Data applications. It provides structured access to Toronto's cultural hotspots, points of interest, and other civic datasets through a modern REST API.
-
-### Architecture
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────┐
-│  React Native App   │  ← Frontend (Mobile)
-│   (Your Frontend)   │
+│  React Native App   │  Frontend (Mobile/Web)
 └──────────┬──────────┘
+           │ HTTPS
+┌──────────▼──────────────────────────────────┐
+│      API Gateway (Port 8080)                │  Public-facing BFF layer
+│  • Request routing                          │
+│  • Response wrapping (ApiResponse)          │
+│  • CORS handling                            │
+│  • Google Maps API key management           │
+└──────────┬──────────────────────────────────┘
+           │ Feign Client (HTTP)
+┌──────────▼──────────────────────────────────┐
+│      Core Service (Port 8081)               │  Business logic layer
+│  • Cultural Hotspots processing            │
+│  • Geospatial calculations (Haversine)     │
+│  • CSV data operations                      │
+│  • GeoJSON transformations                  │
+│  • CKAN API integration                     │
+└──────────┬──────────────────────────────────┘
            │
-           │ REST API
-           │
-┌──────────▼──────────┐
-│ Toronto Open Data   │  ← This Repository
-│      API Layer      │
-└──────────┬──────────┘
-           │
-           │ Data Sources
-           │
-┌──────────▼──────────┐
-│  • CSV Files        │
-│  • Database (H2)    │
-│  • Future: Postgres │
-└─────────────────────┘
+┌──────────▼──────────────────────────────────┐
+│         Data Layer                          │
+│  • CSV files (current)                      │
+│  • H2 Database (configured)                 │
+│  • Future: PostgreSQL                       │
+└─────────────────────────────────────────────┘
 ```
 
-## 🚀 Features
+## 📁 Repository Structure
 
-- **Cultural Hotspots API** - Access Toronto's cultural points of interest
-- **Map Integration** - GeoJSON support for mapping libraries
-- **CORS Enabled** - Ready for frontend consumption
-- **Pagination Support** - Efficient data loading (TODO: Database implementation)
-- **API Documentation** - Interactive Swagger UI
-- **Environment-based Configuration** - Easy deployment across environments
-
-## 📋 Prerequisites
-
-- Java 17 or higher
-- Maven 3.9.11 or higher
-- (Optional) Your favorite IDE (IntelliJ IDEA, VS Code, Eclipse)
-
-## 🛠️ Quick Start
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/charles-king-leung-li/dataserviceprovider.git
-cd dataserviceprovider
+```
+toronto-opendata-api/  (Monorepo Root - GitHub Repository)
+├── toronto-opendata-api-gateway/     ← API Gateway Service
+│   ├── src/
+│   ├── pom.xml
+│   └── README.md
+├── toronto-opendata-core-service/    ← Core Business Logic Service
+│   ├── src/
+│   ├── documentation/                ← Shared documentation
+│   ├── pom.xml
+│   └── README.md
+└── README.md                         ← This file
 ```
 
-### 2. Set Up Environment Variables
+## 🚀 Quick Start
 
-```bash
-# Copy example files
-cp .env.example .env
-cp src/main/resources/application-local.properties.example src/main/resources/application-local.properties
+### Prerequisites
+- Java 17+
+- Maven 3.9.11+
+- Ports 8080 and 8081 available
 
-# Add your API keys to these files (they're gitignored)
+### 1. Start Core Service
+
+```powershell
+cd toronto-opendata-core-service
+.\mvnw spring-boot:run
 ```
 
-### 3. Run the Application
+Service starts on **http://localhost:8081**
 
-Using Maven Wrapper:
-```bash
-# Windows
-.\mvnw.cmd spring-boot:run
+### 2. Start API Gateway
 
-# Mac/Linux
-./mvnw spring-boot:run
+```powershell
+# In a new terminal
+cd toronto-opendata-api-gateway
+.\mvnw spring-boot:run
 ```
 
-The API will start on `http://localhost:8080`
+Gateway starts on **http://localhost:8080**
 
-### 4. Access the API
+### 3. Access the Services
 
-- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
-- **API Docs**: http://localhost:8080/api-docs
-- **H2 Console**: http://localhost:8080/h2-console
+- **Gateway Swagger UI**: http://localhost:8080/swagger-ui.html
+- **Core Service Swagger UI**: http://localhost:8081/swagger-ui.html
+- **Gateway API**: http://localhost:8080/api/*
+- **Core Service API**: http://localhost:8081/api/*
 
 ## 📡 API Endpoints
 
+All public-facing requests go through the **API Gateway** (port 8080):
+
 ### Cultural Hotspots
-
-#### Get All Hotspots (CSV)
 ```http
-GET /api/cultural-hotspots
+GET /api/cultural-hotspots              # Get all hotspots
+GET /api/cultural-hotspots/{id}         # Get by ID
+GET /api/cultural-hotspots/search?name=library
 ```
 
-**Response:**
-```json
-{
-  "data": [...],
-  "message": "Retrieved 500 cultural hotspots from CSV",
-  "status": "success"
-}
-```
-
-#### Get Hotspot by ID
+### Map & GeoJSON
 ```http
-GET /api/cultural-hotspots/{id}
-```
-
-#### Future: Database with Pagination (TODO)
-```http
-GET /api/cultural-hotspots/db?page=0&size=20&sort=name
-```
-
-### Map Integration
-
-```http
-GET /api/map/points                    # Get map points
-GET /api/map/geojson                   # Get GeoJSON format
+GET /api/map/points                     # Get map points
+GET /api/map/geojson                    # Get GeoJSON format
+GET /api/map/bounds?minLat=...          # Filter by bounds
 GET /api/map/nearby?lat=43.65&lon=-79.38&radius=5
 ```
 
-## 🗄️ Data Sources
-
-### Current (Temporary)
-- **CSV Files**: Located in `src/main/resources/data/`
-  - `points-of-interest-05-11-2025.csv` - Cultural hotspots
-  - `Places of Worship - 4326.csv` - Places of worship
-  - `tpl-branch-general-information-2023.json` - Library branches
-
-### Future (Permanent)
-- **PostgreSQL Database** - Will migrate CSV data to relational database
-- **Pagination** - Full pagination support on database queries
+### Configuration
+```http
+GET /api/config/maps-key                # Get Google Maps API key
+```
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
-See `.env.example` for all available configuration options.
-
-**Required:**
-- `GOOGLE_MAPS_API_KEY` - For map integration features
-
-**Optional (with defaults):**
-- `CORS_ALLOWED_ORIGINS` - Comma-separated allowed origins
-- `SERVER_PORT` - API port (default: 8080)
-
-### Profiles
-
-- **local** - Development with H2 database
-- **prod** - Production configuration (TODO)
-
-## 🧪 Testing
-
+**API Gateway** (`toronto-opendata-api-gateway/.env`):
 ```bash
-# Run all tests
-./mvnw test
-
-# Run with coverage
-./mvnw test jacoco:report
+GOOGLE_MAPS_API_KEY=your_key_here
+CORE_SERVICE_URL=http://localhost:8081  # Feign client URL
 ```
 
-## 📦 Building for Production
-
+**Core Service** (`toronto-opendata-core-service/.env`):
 ```bash
-# Build JAR
-./mvnw clean package
-
-# Run the JAR
-java -jar target/toronto-opendata-api-0.0.1-SNAPSHOT.jar
+SERVER_PORT=8081
 ```
 
-## 🌐 CORS Configuration
+### Application Properties
 
-CORS is configured for local development by default. For production:
+Both services use `application.properties` for Spring Boot configuration.
 
-```bash
-# Set environment variable
-export CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+## 🧪 Testing the Microservices
+
+### Using PowerShell Scripts
+
+See `toronto-opendata-core-service/documentation/MICROSERVICES_TESTING_GUIDE.md` for comprehensive testing instructions.
+
+### Manual Testing
+
+```powershell
+# Test Core Service directly
+curl http://localhost:8081/api/cultural-hotspots
+
+# Test through Gateway
+curl http://localhost:8080/api/cultural-hotspots
+
+# Test map endpoints
+curl "http://localhost:8080/api/map/nearby?lat=43.65&lon=-79.38&radius=5"
 ```
-
-See [CORS Setup Documentation](documentation/CORS_SETUP.md) for details.
 
 ## 📚 Documentation
 
-Detailed documentation is available in the `documentation/` folder:
+Comprehensive documentation is in `toronto-opendata-core-service/documentation/`:
 
-- [CORS Setup](documentation/CORS_SETUP.md)
-- [Environment Variables](documentation/ENV_SETUP.md)
-- [Git Commit Checklist](documentation/GIT_COMMIT_CHECKLIST.md)
-- [Cultural Hotspots API](documentation/CULTURAL_HOTSPOTS_API.md)
-- [Map API](documentation/MAP_API.md)
-- [Google Maps Setup](documentation/GOOGLE_MAPS_SETUP.md)
+- **[MICROSERVICES_QUICK_START.md](toronto-opendata-core-service/documentation/MICROSERVICES_QUICK_START.md)** - Getting started guide
+- **[MICROSERVICES_TESTING_GUIDE.md](toronto-opendata-core-service/documentation/MICROSERVICES_TESTING_GUIDE.md)** - Complete testing guide
+- **[MIGRATION_PROGRESS.md](toronto-opendata-core-service/documentation/MIGRATION_PROGRESS.md)** - Migration status and details
+- **[API_QUICK_REFERENCE.md](toronto-opendata-core-service/documentation/API_QUICK_REFERENCE.md)** - API endpoints reference
 
-## 🏗️ Project Structure
+## 🏗️ Service Details
 
+### API Gateway (Port 8080)
+**Technology Stack:**
+- Spring Boot 3.5.7
+- Spring Cloud OpenFeign (for inter-service communication)
+- Swagger/OpenAPI
+
+**Responsibilities:**
+- Public-facing API endpoints
+- Request routing to Core Service
+- Response wrapping with `ApiResponse<T>`
+- CORS configuration
+- API key management
+- Static resource serving (map.html)
+
+### Core Service (Port 8081)
+**Technology Stack:**
+- Spring Boot 3.5.7
+- Spring Data JPA
+- H2 Database
+- Apache Commons CSV
+- Swagger/OpenAPI
+
+**Responsibilities:**
+- Business logic processing
+- Geospatial calculations (Haversine distance)
+- CSV data parsing and operations
+- GeoJSON transformation
+- CKAN API integration
+- Data validation and transformation
+
+## � Migration Status
+
+✅ **Complete** - Migrated from monolith to microservices architecture
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Cultural Hotspots API | ✅ Migrated | Core Service |
+| Map & GeoJSON API | ✅ Migrated | Core Service |
+| CSV Operations | ✅ Migrated | Core Service |
+| CKAN Integration | ✅ Migrated | Core Service |
+| API Key Config | ✅ Migrated | Gateway |
+| Exception Handling | ✅ Migrated | Core Service |
+| OpenAPI Documentation | ✅ Migrated | Both Services |
+| Data Files | ✅ Migrated | Core Service |
+| Documentation | ✅ Migrated | Core Service |
+
+## 🛠️ Development Workflow
+
+### Adding New Features
+
+1. **Determine service ownership:**
+   - Public-facing/BFF logic → API Gateway
+   - Business logic/data processing → Core Service
+
+2. **Create feature branch:**
+   ```bash
+   git checkout -b feature/new-feature
+   ```
+
+3. **Make changes in appropriate service:**
+   ```bash
+   cd toronto-opendata-core-service  # or toronto-opendata-api-gateway
+   # Make your changes
+   ```
+
+4. **Test locally:**
+   ```bash
+   # Start both services
+   # Run tests
+   .\mvnw test
+   ```
+
+5. **Commit and push:**
+   ```bash
+   git add .
+   git commit -m "feat: add new feature to core service"
+   git push origin feature/new-feature
+   ```
+
+### Building for Production
+
+```powershell
+# Build both services
+cd toronto-opendata-core-service
+.\mvnw clean package
+
+cd ../toronto-opendata-api-gateway
+.\mvnw clean package
+
+# JARs will be in each service's target/ directory
 ```
-toronto-opendata-api/
-├── src/
-│   ├── main/
-│   │   ├── java/com/toronto/opendata/dataportal/
-│   │   │   ├── controller/     # REST endpoints
-│   │   │   ├── service/        # Business logic
-│   │   │   ├── repository/     # Data access
-│   │   │   ├── model/          # Domain models
-│   │   │   ├── dto/            # Data transfer objects
-│   │   │   ├── config/         # Configuration classes
-│   │   │   └── util/           # Utility classes
-│   │   └── resources/
-│   │       ├── application.properties
-│   │       ├── data/           # CSV datasets
-│   │       └── static/         # Static resources
-│   └── test/                   # Unit and integration tests
-├── documentation/              # Project documentation
-├── pom.xml                    # Maven dependencies
-└── README.md                  # This file
-```
 
-## 🚧 Roadmap
+## 🔐 Security Considerations
 
-- [x] CSV data loading
-- [x] REST API endpoints
-- [x] CORS configuration
-- [x] API documentation (Swagger)
-- [ ] Database migration (PostgreSQL)
-- [ ] Pagination implementation
-- [ ] Authentication/Authorization
-- [ ] Rate limiting
-- [ ] Caching layer (Redis)
-- [ ] Docker deployment
-- [ ] CI/CD pipeline
+- API Gateway handles CORS and public exposure
+- Core Service should not be directly accessible from internet
+- Use environment variables for sensitive configuration
+- `.env` files are gitignored
+
+## 🚀 Deployment
+
+### Development
+- Run both services locally on different ports
+- Gateway on 8080, Core on 8081
+
+### Production (Future)
+- Deploy Core Service internally (not public-facing)
+- Deploy Gateway with public access
+- Update `CORE_SERVICE_URL` in Gateway config
+- Consider: Docker, Kubernetes, Azure App Service, AWS ECS
 
 ## 🤝 Contributing
 
-This is a personal project, but suggestions and feedback are welcome!
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Create feature branch from `main`
+2. Make changes in appropriate service
+3. Test thoroughly (both services)
+4. Commit with conventional commit messages
+5. Create Pull Request
 
 ## 📄 License
 
-This project uses public data from [Toronto Open Data](https://open.toronto.ca/).
+Data from [Toronto Open Data](https://open.toronto.ca/)  
+License: Open Government Licence – Toronto
 
 ## 👤 Author
 
 **Charles King Leung Li**
 - GitHub: [@charles-king-leung-li](https://github.com/charles-king-leung-li)
 
-## 🙏 Acknowledgments
-
-- Data provided by [City of Toronto Open Data](https://open.toronto.ca/)
-- Built with [Spring Boot](https://spring.io/projects/spring-boot)
-
 ---
 
-**Note**: This is the backend API layer. For the frontend React Native application, see https://github.com/charles-king-leung-li/TorontoOpenDataReactFE.
+**Need Help?**
+- See service-specific READMEs in each folder
+- Check documentation in `toronto-opendata-core-service/documentation/`
+- Review migration guide: `MIGRATION_PROGRESS.md`
